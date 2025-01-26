@@ -1,21 +1,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap");
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+body {
+  font-family: "Lato", Helvetica, sans-serif;
+  letter-spacing: 0.1rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  :root {
+    --radius: 0.5rem;
+  }
+}
+
+.bg-gd {
+  @apply bg-gradient-to-r from-[#ff9a9e] via-[#ff6b95] to-[#a855f7];
+}
+
+.text-gd {
+  @apply bg-gradient-to-r from-[#ff9a9e] via-[#ff6b95] to-[#a855f7] bg-clip-text text-transparent;
+}
+
+.h-main {
+  @apply text-3xl font-bold  sm:text-3xl xl:text-[2.35rem]/none;
+}
+.text-mono {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500;
+}
+.text-normal {
+  @apply text-zinc-200 text-sm md:text-lg dark:text-zinc-100;
 }

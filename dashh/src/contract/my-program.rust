@@ -1,0 +1,39 @@
+use std::collections::HashMap;
+
+struct Winner {
+    name: String,
+    amount: u64,
+}
+
+struct Contest {
+    winners: HashMap<String, Winner>,
+}
+
+impl Contest {
+    fn new() -> Self {
+        Contest {
+            winners: HashMap::new(),
+        }
+    }
+
+    fn set_winner(&mut self, name: String, amount: u64) {
+        let winner = Winner { name: name.clone(), amount };
+        self.winners.insert(name, winner);
+    }
+
+    fn get_winner(&self, name: &str) -> Option<&Winner> {
+        self.winners.get(name)
+    }
+}
+
+fn main() {
+    let mut contest = Contest::new();
+    contest.set_winner("Alice".to_string(), 1000);
+    contest.set_winner("Bob".to_string(), 500);
+
+    if let Some(winner) = contest.get_winner("Alice") {
+        println!("Winner: {}, Amount: {}", winner.name, winner.amount);
+    } else {
+        println!("No winner found with that name.");
+    }
+}
