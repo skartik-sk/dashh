@@ -1,41 +1,51 @@
-module dashh_add::campaign_module {
-    use std::signer;
-    use std::string::String;
+module dashh_add::dashh1 {
+    use std::string::{String, utf8};
     use std::vector;
+    use aptos_framework::account;
+    use aptos_framework::timestamp;
     use aptos_std::table::{Self, Table};
 
-    // Add copy, drop, and store abilities
-    struct Campaign has copy, drop, store {
+    // Error codes
+    const E_CAMPAIGN_EXISTS: u64 = 1;
+    const E_CAMPAIGN_NOT_FOUND: u64 = 2;
+    const E_NOT_OWNER: u64 = 3;
+    const E_CAMPAIGN_ENDED: u64 = 4;
+
+    // Structs
+    struct Campaign has store {
         id: u64,
         title: String,
         image: String,
         description: String,
         label: String,
-        end_time: u64,
+        endtime: u64,
         reward: u64,
-        owner: address
+        owner: address,
     }
 
-    // Add copy, drop, and store abilities
-    struct Participant has copy, drop, store {
+    struct Participant has store {
         id: u64,
         user: address,
-        points: u64
+        points: u64,
     }
 
-    struct CampaignManager has key {
+    // Resource to store all campaigns and participants
+    struct CampaignStore has key {
         campaigns: Table<u64, Campaign>,
-        participants: Table<u64, vector<Participant>>
+        participants: Table<address, Participant>,
+        campaign_count: u64,
     }
 
-    public fun initialize_campaign_manager(account: &signer) {
-        let manager = CampaignManager {
+    // Initialize function
+    fun init_module(account: &signer) {
+        move_to(account, CampaignStore {
             campaigns: table::new(),
-            participants: table::new()
-        };
-        move_to(account, manager);
+            participants: table::new(),
+            campaign_count: 0,
+        });
     }
 
+    // Create campaign
     public entry fun create_campaign(
         account: &signer,
         campaign_id: u64,
@@ -43,67 +53,96 @@ module dashh_add::campaign_module {
         image: String,
         description: String,
         label: String,
-        end_time: u64,
+        endtime: u64,
         reward: u64
-    ) acquires CampaignManager {
-        let sender = signer::address_of(account);
-        let campaign_manager = borrow_global_mut<CampaignManager>(sender);
+    ) acquires CampaignStore {
+        let signer_addr = std::signer::address_of(account);
+        let campaign_store = borrow_global_mut<CampaignStore>(@dashh_add);
+        
+        assert!(!table::contains(&campaign_store.campaigns, campaign_id), E_CAMPAIGN_EXISTS);
 
         let campaign = Campaign {
             id: campaign_id,
-            title,
-            image,
-            description,
-            label,
-            end_time,
-            reward,
-            owner: sender
+            title: title,
+            image: image,
+            description: description,
+            label: label,
+            endtime: endtime,
+            reward: reward,
+            owner: signer_addr,
         };
 
-        table::add(&mut campaign_manager.campaigns, campaign_id, campaign);
+        table::add(&mut campaign_store.campaigns, campaign_id, campaign);
+        campaign_store.campaign_count = campaign_store.campaign_count + 1;
     }
 
+    // Create participant
     public entry fun create_participant(
         account: &signer,
         campaign_id: u64
-    ) acquires CampaignManager {
-        let sender = signer::address_of(account);
-        let campaign_manager = borrow_global_mut<CampaignManager>(sender);
-
-        // Initialize participants table for campaign if not exists
-        if (!table::contains(&campaign_manager.participants, campaign_id)) {
-            table::add(&mut campaign_manager.participants, campaign_id, vector::empty());
-        };
+    ) acquires CampaignStore {
+        let signer_addr = std::signer::address_of(account);
+        let campaign_store = borrow_global_mut<CampaignStore>(@dashh_add);
+        
+        assert!(table::contains(&campaign_store.campaigns, campaign_id), E_CAMPAIGN_NOT_FOUND);
 
         let participant = Participant {
             id: campaign_id,
-            user: sender,
-            points: 0
+            user: signer_addr,
+            points: 0,
         };
 
-        let campaign_participants = table::borrow_mut(&mut campaign_manager.participants, campaign_id);
-        vector::push_back(campaign_participants, participant);
+        table::add(&mut campaign_store.participants, signer_addr, participant);
     }
 
+    // Update participant points
     public entry fun update_participant_points(
         account: &signer,
-        campaign_id: u64,
+        participant_addr: address,
         points: u64
-    ) acquires CampaignManager {
-        let sender = signer::address_of(account);
-        let campaign_manager = borrow_global_mut<CampaignManager>(sender);
-
-        let campaign_participants = table::borrow_mut(&mut campaign_manager.participants, campaign_id);
-        vector::for_each_mut(campaign_participants, |participant| {
-            if (participant.user == sender) {
-                participant.points = points;
-            }
-        });
+    ) acquires CampaignStore {
+        let campaign_store = borrow_global_mut<CampaignStore>(@dashh_add);
+        
+        assert!(table::contains(&campaign_store.participants, participant_addr), E_CAMPAIGN_NOT_FOUND);
+        
+        let participant = table::borrow_mut(&mut campaign_store.participants, participant_addr);
+        participant.points = points;
     }
 
-    // Modified to return a copy instead of a reference
-    public fun get_campaign(sender: address, campaign_id: u64): Campaign acquires CampaignManager {
-        let campaign_manager = borrow_global<CampaignManager>(sender);
-        *table::borrow(&campaign_manager.campaigns, campaign_id)
+    // Get campaign details
+    #[view]
+    public fun get_campaign(campaign_id: u64): (String, String, String, String, u64, u64, address) acquires CampaignStore {
+        let campaign_store = borrow_global<CampaignStore>(@dashh_add);
+        let campaign = table::borrow(&campaign_store.campaigns, campaign_id);
+        
+        (
+            campaign.title,
+            campaign.image,
+            campaign.description,
+            campaign.label,
+            campaign.endtime,
+            campaign.reward,
+            campaign.owner
+        )
+    }
+
+    // Get participant details
+    #[view]
+    public fun get_participant(participant_addr: address): (u64, address, u64) acquires CampaignStore {
+        let campaign_store = borrow_global<CampaignStore>(@dashh_add);
+        let participant = table::borrow(&campaign_store.participants, participant_addr);
+        
+        (
+            participant.id,
+            participant.user,
+            participant.points
+        )
+    }
+
+    // Get all campaigns
+    #[view]
+    public fun get_campaign_count(): u64 acquires CampaignStore {
+        let campaign_store = borrow_global<CampaignStore>(@dashh_add);
+        campaign_store.campaign_count
     }
 }
