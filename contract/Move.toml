@@ -1,0 +1,10 @@
+[package]
+name = "token_platform"
+version = "1.0.0"
+authors = ["theman"]
+
+[addresses]
+dashh_add = "413f54997700a74c4d21a6a74ddbd89d60378a207856f58e40b5649846990105"
+
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "main" }
